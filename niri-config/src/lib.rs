@@ -617,6 +617,10 @@ pub struct Cursor {
     pub xcursor_theme: String,
     #[knuffel(child, unwrap(argument), default = 24)]
     pub xcursor_size: u8,
+    #[knuffel(child)]
+    pub hide_on_key_press: bool,
+    #[knuffel(child, unwrap(argument))]
+    pub hide_after_inactive_ms: Option<u32>,
 }
 
 impl Default for Cursor {
@@ -624,6 +628,8 @@ impl Default for Cursor {
         Self {
             xcursor_theme: String::from("default"),
             xcursor_size: 24,
+            hide_on_key_press: false,
+            hide_after_inactive_ms: None,
         }
     }
 }
@@ -2956,6 +2962,8 @@ mod tests {
             cursor {
                 xcursor-theme "breeze_cursors"
                 xcursor-size 16
+                hide-on-key-press
+                hide-after-inactive-ms 3000
             }
 
             screenshot-path "~/Screenshots/screenshot.png"
@@ -3158,6 +3166,8 @@ mod tests {
                 cursor: Cursor {
                     xcursor_theme: String::from("breeze_cursors"),
                     xcursor_size: 16,
+                    hide_on_key_press: true,
+                    hide_after_inactive_ms: Some(3000),
                 },
                 screenshot_path: Some(String::from("~/Screenshots/screenshot.png")),
                 hotkey_overlay: HotkeyOverlay {
