@@ -81,6 +81,8 @@ pub struct Input {
     pub focus_follows_mouse: Option<FocusFollowsMouse>,
     #[knuffel(child)]
     pub workspace_auto_back_and_forth: bool,
+    #[knuffel(child)]
+    pub allow_creating_workspace_above: bool,
 }
 
 #[derive(knuffel::Decode, Debug, PartialEq, Eq)]
@@ -2895,6 +2897,7 @@ mod tests {
                 warp-mouse-to-focus
                 focus-follows-mouse
                 workspace-auto-back-and-forth
+                allow-creating-workspace-above
             }
 
             output "eDP-1" {
@@ -3081,6 +3084,7 @@ mod tests {
                         max_scroll_amount: None,
                     }),
                     workspace_auto_back_and_forth: true,
+                    allow_creating_workspace_above: true,
                 },
                 outputs: Outputs(vec![Output {
                     off: false,

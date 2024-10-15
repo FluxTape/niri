@@ -105,6 +105,12 @@ impl<W: LayoutElement> Monitor<W> {
         }
     }
 
+    pub fn create_workspace_above_first(&mut self) {
+        let ws = Workspace::new(self.output.clone(), self.options.clone());
+        self.workspaces.insert(0, ws);
+        self.active_workspace_idx += 1;
+    }
+
     pub fn output_name(&self) -> &String {
         &self.output_name
     }
@@ -186,6 +192,13 @@ impl<W: LayoutElement> Monitor<W> {
             self.workspaces.push(ws);
         }
 
+        let mut workspace_idx = workspace_idx;
+        // TODO: make configurable
+        if workspace_idx == 0 {
+            self.create_workspace_above_first();
+            workspace_idx = 1;
+        }
+
         if activate {
             self.activate_workspace(workspace_idx);
         }
@@ -225,6 +238,12 @@ impl<W: LayoutElement> Monitor<W> {
             self.workspaces.push(ws);
         }
 
+        let mut workspace_idx = workspace_idx;
+        if workspace_idx == 0 {
+            self.create_workspace_above_first();
+            workspace_idx = 1;
+        }
+
         if activate {
             self.activate_workspace(workspace_idx);
         }
@@ -233,7 +252,8 @@ impl<W: LayoutElement> Monitor<W> {
     pub fn clean_up_workspaces(&mut self) {
         assert!(self.workspace_switch.is_none());
 
-        for idx in (0..self.workspaces.len() - 1).rev() {
+        // TODO: make start of range configurable
+        for idx in (1..self.workspaces.len() - 1).rev() {
             if self.active_workspace_idx == idx {
                 continue;
             }
@@ -771,17 +791,23 @@ impl<W: LayoutElement> Monitor<W> {
     }
 
     pub fn move_workspace_up(&mut self) {
-        let new_idx = self.active_workspace_idx.saturating_sub(1);
+        let mut new_idx = self.active_workspace_idx.saturating_sub(1);
         if new_idx == self.active_workspace_idx {
             return;
         }
 
         self.workspaces.swap(self.active_workspace_idx, new_idx);
 
-        if self.active_workspace_idx == self.workspaces.len() - 1 {
+        /*if self.active_workspace_idx == self.workspaces.len() - 1 {
             // Insert a new empty workspace.
             let ws = Workspace::new(self.output.clone(), self.options.clone());
             self.workspaces.push(ws);
+        }*/
+
+        // TODO: make configurable
+        if self.active_workspace_idx == 0 {
+            self.create_workspace_above_first();
+            new_idx = 1;
         }
 
         let previous_workspace_id = self.previous_workspace_id;
