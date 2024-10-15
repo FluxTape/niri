@@ -115,6 +115,17 @@ impl<W: LayoutElement> Monitor<W> {
         &self.output
     }
 
+    fn add_workspace_above_first(&mut self) {
+        let ws = Workspace::new(self.output.clone(), self.options.clone());
+        self.workspaces.insert(0, ws);
+        self.active_workspace_idx += 1;
+    }
+
+    fn add_workspace_below_last(&mut self) {
+        let ws = Workspace::new(self.output.clone(), self.options.clone());
+        self.workspaces.push(ws);
+    }
+
     pub fn output_name(&self) -> &String {
         &self.output_name
     }
@@ -196,8 +207,7 @@ impl<W: LayoutElement> Monitor<W> {
 
         if workspace_idx == self.workspaces.len() - 1 {
             // Insert a new empty workspace.
-            let ws = Workspace::new(self.output.clone(), self.options.clone());
-            self.workspaces.push(ws);
+            self.add_workspace_below_last();
         }
 
         let mut workspace_idx = workspace_idx;
@@ -245,13 +255,12 @@ impl<W: LayoutElement> Monitor<W> {
 
         if workspace_idx == self.workspaces.len() - 1 {
             // Insert a new empty workspace.
-            let ws = Workspace::new(self.output.clone(), self.options.clone());
-            self.workspaces.push(ws);
+            self.add_workspace_below_last();
         }
 
         let mut workspace_idx = workspace_idx;
         if workspace_idx == 0 {
-            self.create_workspace_above_first();
+            self.add_workspace_above_first();
             workspace_idx = 1;
         }
 
@@ -807,10 +816,10 @@ impl<W: LayoutElement> Monitor<W> {
 
         self.workspaces.swap(self.active_workspace_idx, new_idx);
 
+        // not needed
         /*if self.active_workspace_idx == self.workspaces.len() - 1 {
             // Insert a new empty workspace.
-            let ws = Workspace::new(self.output.clone(), self.options.clone());
-            self.workspaces.push(ws);
+            self.add_workspace_below_last();
         }*/
 
         // TODO: make configurable
