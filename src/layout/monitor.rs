@@ -281,6 +281,8 @@ impl<W: LayoutElement> Monitor<W> {
                 }
             }
         }
+        // special case handling when empty_workspace_above_first is set and all workspaces
+        // are empty
         if self.options.empty_workspace_above_first
             && self.workspaces.len() == 2
             && !self.workspaces[0].has_windows()

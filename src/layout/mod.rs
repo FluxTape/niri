@@ -1833,7 +1833,8 @@ impl<W: LayoutElement> Layout<W> {
             );
 
             // If there's no workspace switch in progress, there can't be any non-last non-active
-            // empty workspaces. If empty_workspace_above_first is set then the first workspace will be empty too.
+            // empty workspaces. If empty_workspace_above_first is set then the first workspace
+            // will be empty too.
             let pre_skip = if monitor.options.empty_workspace_above_first {
                 1
             } else {
