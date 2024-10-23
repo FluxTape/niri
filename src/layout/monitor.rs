@@ -203,7 +203,7 @@ impl<W: LayoutElement> Monitor<W> {
             self.add_workspace_bottom();
         }
 
-        let idx_offset = if self.options.allow_workspace_above_first && workspace_idx == 0 {
+        let idx_offset = if self.options.empty_workspace_above_first && workspace_idx == 0 {
             self.add_workspace_top();
             1
         } else {
@@ -249,7 +249,7 @@ impl<W: LayoutElement> Monitor<W> {
         if workspace_idx == self.workspaces.len() - 1 {
             self.add_workspace_bottom();
         }
-        let idx_offset = if self.options.allow_workspace_above_first && workspace_idx == 0 {
+        let idx_offset = if self.options.empty_workspace_above_first && workspace_idx == 0 {
             self.add_workspace_top();
             1
         } else {
@@ -264,7 +264,7 @@ impl<W: LayoutElement> Monitor<W> {
     pub fn clean_up_workspaces(&mut self) {
         assert!(self.workspace_switch.is_none());
 
-        let range_start = if self.options.allow_workspace_above_first {
+        let range_start = if self.options.empty_workspace_above_first {
             1
         } else {
             0
@@ -279,6 +279,20 @@ impl<W: LayoutElement> Monitor<W> {
                 if self.active_workspace_idx > idx {
                     self.active_workspace_idx -= 1;
                 }
+            }
+        }
+        if self.options.empty_workspace_above_first
+            && self.workspaces.len() == 2
+            && !self.workspaces[0].has_windows()
+            && self.workspaces[0].name.is_none()
+            && !self.workspaces[1].has_windows()
+            && self.workspaces[1].name.is_none()
+        {
+            if self.active_workspace_idx == 0 {
+                self.workspaces.remove(1);
+            } else {
+                self.active_workspace_idx = 0;
+                self.workspaces.remove(0);
             }
         }
     }

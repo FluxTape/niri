@@ -248,7 +248,7 @@ pub struct Options {
     pub border: niri_config::Border,
     pub center_focused_column: CenterFocusedColumn,
     pub always_center_single_column: bool,
-    pub allow_workspace_above_first: bool,
+    pub empty_workspace_above_first: bool,
     /// Column widths that `toggle_width()` switches between.
     pub preset_column_widths: Vec<ColumnWidth>,
     /// Initial width for new columns.
@@ -270,7 +270,7 @@ impl Default for Options {
             border: Default::default(),
             center_focused_column: Default::default(),
             always_center_single_column: false,
-            allow_workspace_above_first: false,
+            empty_workspace_above_first: false,
             preset_column_widths: vec![
                 ColumnWidth::Proportion(1. / 3.),
                 ColumnWidth::Proportion(0.5),
@@ -333,7 +333,7 @@ impl Options {
             border: layout.border,
             center_focused_column: layout.center_focused_column,
             always_center_single_column: layout.always_center_single_column,
-            allow_workspace_above_first: layout.allow_workspace_above_first,
+            empty_workspace_above_first: layout.empty_workspace_above_first,
             preset_column_widths,
             default_column_width,
             animations: config.animations.clone(),
@@ -1822,6 +1822,10 @@ impl<W: LayoutElement> Layout<W> {
                 monitor.workspaces.last().unwrap().columns.is_empty(),
                 "monitor must have an empty workspace in the end"
             );
+            if monitor.options.empty_workspace_above_first {
+                assert!(monitor.workspaces.last().unwrap().columns.is_empty(),
+                "first workspace must be empty workspace when empty_workspace_above_first is set")
+            }
 
             assert!(
                 monitor.workspaces.last().unwrap().name.is_none(),
@@ -1829,9 +1833,22 @@ impl<W: LayoutElement> Layout<W> {
             );
 
             // If there's no workspace switch in progress, there can't be any non-last non-active
-            // empty workspaces.
+            // empty workspaces. If empty_workspace_above_first is set then the first workspace will be empty too.
+            let pre_skip = if monitor.options.empty_workspace_above_first {
+                1
+            } else {
+                0
+            };
             if monitor.workspace_switch.is_none() {
-                for (idx, ws) in monitor.workspaces.iter().enumerate().rev().skip(1) {
+                for (idx, ws) in monitor
+                    .workspaces
+                    .iter()
+                    .enumerate()
+                    .skip(pre_skip)
+                    .rev()
+                    .skip(1)
+                // skip last
+                {
                     if idx != monitor.active_workspace_idx {
                         assert!(
                             !ws.columns.is_empty() || ws.name.is_some(),
@@ -3960,6 +3977,27 @@ mod tests {
                     third.apply(&mut layout);
                     layout.verify_invariants();
                 }
+                // same test with empty-workspace-above-first set to true
+                for first in every_op {
+                    // eprintln!("{first:?}, {second:?}, {third:?}");
+
+                    let options = Options {
+                        empty_workspace_above_first: true,
+                        ..Default::default()
+                    };
+                    let mut layout = Layout::with_options(options);
+
+                    for op in setup_ops {
+                        op.apply(&mut layout);
+                    }
+
+                    first.apply(&mut layout);
+                    layout.verify_invariants();
+                    second.apply(&mut layout);
+                    layout.verify_invariants();
+                    third.apply(&mut layout);
+                    layout.verify_invariants();
+                }
             }
         }
     }
@@ -4318,12 +4356,18 @@ mod tests {
         };
 
         let mon = monitors.into_iter().next().unwrap();
+        let expected_workspace_offset = if mon.options.empty_workspace_above_first {
+            1
+        } else {
+            0
+        };
         assert_eq!(
-            mon.active_workspace_idx, 1,
+            mon.active_workspace_idx,
+            1 + expected_workspace_offset,
             "the second workspace must remain active"
         );
         assert_eq!(
-            mon.workspaces[0].active_column_idx, 1,
+            mon.workspaces[expected_workspace_offset].active_column_idx, 1,
             "the new window must become active"
         );
     }
