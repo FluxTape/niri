@@ -1823,7 +1823,7 @@ impl<W: LayoutElement> Layout<W> {
                 "monitor must have an empty workspace in the end"
             );
             if monitor.options.empty_workspace_above_first {
-                assert!(monitor.workspaces.last().unwrap().columns.is_empty(),
+                assert!(monitor.workspaces.first().unwrap().columns.is_empty(),
                 "first workspace must be empty workspace when empty_workspace_above_first is set")
             }
 
