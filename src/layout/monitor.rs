@@ -808,12 +808,19 @@ impl<W: LayoutElement> Monitor<W> {
 
         if new_idx == self.workspaces.len() - 1 {
             // Insert a new empty workspace.
-            let ws = Workspace::new(self.output.clone(), self.options.clone());
-            self.workspaces.push(ws);
+            self.add_workspace_bottom();
         }
 
+        let idx_offset =
+            if self.options.empty_workspace_above_first && self.active_workspace_idx == 0 {
+                self.add_workspace_top();
+                1
+            } else {
+                0
+            };
+
         let previous_workspace_id = self.previous_workspace_id;
-        self.activate_workspace(new_idx);
+        self.activate_workspace(new_idx + idx_offset);
         self.workspace_switch = None;
         self.previous_workspace_id = previous_workspace_id;
 
@@ -830,12 +837,18 @@ impl<W: LayoutElement> Monitor<W> {
 
         if self.active_workspace_idx == self.workspaces.len() - 1 {
             // Insert a new empty workspace.
-            let ws = Workspace::new(self.output.clone(), self.options.clone());
-            self.workspaces.push(ws);
+            self.add_workspace_bottom();
         }
 
+        let idx_offset = if self.options.empty_workspace_above_first && new_idx == 0 {
+            self.add_workspace_top();
+            1
+        } else {
+            0
+        };
+
         let previous_workspace_id = self.previous_workspace_id;
-        self.activate_workspace(new_idx);
+        self.activate_workspace(new_idx + idx_offset);
         self.workspace_switch = None;
         self.previous_workspace_id = previous_workspace_id;
 

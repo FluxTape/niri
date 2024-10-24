@@ -431,6 +431,10 @@ impl<W: LayoutElement> Layout<W> {
                 // Make sure there's always an empty workspace.
                 workspaces.push(Workspace::new(output.clone(), self.options.clone()));
 
+                if self.options.empty_workspace_above_first && workspaces.len() > 1 {
+                    workspaces.insert(0, Workspace::new(output.clone(), self.options.clone()));
+                }
+
                 for ws in &mut workspaces {
                     ws.set_output(Some(output.clone()));
                 }
@@ -445,6 +449,10 @@ impl<W: LayoutElement> Layout<W> {
             MonitorSet::NoOutputs { mut workspaces } => {
                 // We know there are no empty workspaces there, so add one.
                 workspaces.push(Workspace::new(output.clone(), self.options.clone()));
+
+                if self.options.empty_workspace_above_first && workspaces.len() > 1 {
+                    workspaces.insert(0, Workspace::new(output.clone(), self.options.clone()));
+                }
 
                 for workspace in &mut workspaces {
                     workspace.set_output(Some(output.clone()));
@@ -1823,14 +1831,22 @@ impl<W: LayoutElement> Layout<W> {
                 "monitor must have an empty workspace in the end"
             );
             if monitor.options.empty_workspace_above_first {
-                assert!(monitor.workspaces.first().unwrap().columns.is_empty(),
-                "first workspace must be empty workspace when empty_workspace_above_first is set")
+                assert!(
+                    monitor.workspaces.first().unwrap().columns.is_empty(),
+                    "first workspace must be empty when empty_workspace_above_first is set"
+                )
             }
 
             assert!(
                 monitor.workspaces.last().unwrap().name.is_none(),
                 "monitor must have an unnamed workspace in the end"
             );
+            if monitor.options.empty_workspace_above_first {
+                assert!(
+                    monitor.workspaces.first().unwrap().name.is_none(),
+                    "first workspace must be unnamed when empty_workspace_above_first is set"
+                )
+            }
 
             // If there's no workspace switch in progress, there can't be any non-last non-active
             // empty workspaces. If empty_workspace_above_first is set then the first workspace
@@ -1982,6 +1998,14 @@ impl<W: LayoutElement> Layout<W> {
                 );
                 mon.workspaces.insert(0, ws);
                 mon.active_workspace_idx += 1;
+                if mon.options.empty_workspace_above_first
+                    && (mon.workspaces[0].has_windows() || mon.workspaces[0].name.is_some())
+                {
+                    // need to insert new empty workspace on top
+                    let ws = Workspace::new(mon.output.clone(), mon.options.clone());
+                    mon.workspaces.insert(0, ws);
+                    mon.active_workspace_idx += 1;
+                }
                 mon.workspace_switch = None;
                 mon.clean_up_workspaces();
             }
@@ -2220,6 +2244,12 @@ impl<W: LayoutElement> Layout<W> {
             let ws = Workspace::new(current.output.clone(), current.options.clone());
             current.workspaces.push(ws);
         }
+        if current.options.empty_workspace_above_first && current.active_workspace_idx == 0 {
+            let ws = Workspace::new(current.output.clone(), current.options.clone());
+            current.workspaces.insert(0, ws);
+            current.active_workspace_idx = 1;
+        }
+
         let mut ws = current.workspaces.remove(current.active_workspace_idx);
         current.active_workspace_idx = current.active_workspace_idx.saturating_sub(1);
         current.workspace_switch = None;
@@ -2236,6 +2266,12 @@ impl<W: LayoutElement> Layout<W> {
 
         target.previous_workspace_id = Some(target.workspaces[target.active_workspace_idx].id());
 
+        if target.options.empty_workspace_above_first && target.workspaces.len() == 1 {
+            // Insert a new empty workspace on top to prepare for insertion of new workspce.
+            let ws = Workspace::new(target.output.clone(), target.options.clone());
+            target.workspaces.insert(0, ws);
+            target.active_workspace_idx += 1;
+        }
         // Insert the workspace after the currently active one. Unless the currently active one is
         // the last empty workspace, then insert before.
         let target_ws_idx = min(target.active_workspace_idx + 1, target.workspaces.len() - 1);
@@ -3978,27 +4014,6 @@ mod tests {
                     third.apply(&mut layout);
                     layout.verify_invariants();
                 }
-                // same test with empty-workspace-above-first set to true
-                for first in every_op {
-                    // eprintln!("{first:?}, {second:?}, {third:?}");
-
-                    let options = Options {
-                        empty_workspace_above_first: true,
-                        ..Default::default()
-                    };
-                    let mut layout = Layout::with_options(options);
-
-                    for op in setup_ops {
-                        op.apply(&mut layout);
-                    }
-
-                    first.apply(&mut layout);
-                    layout.verify_invariants();
-                    second.apply(&mut layout);
-                    layout.verify_invariants();
-                    third.apply(&mut layout);
-                    layout.verify_invariants();
-                }
             }
         }
     }
@@ -4347,30 +4362,52 @@ mod tests {
             },
         ];
 
-        let mut layout = Layout::default();
-        for op in ops {
-            op.apply(&mut layout);
+        // empty_workspace_above_first = false
+        {
+            let mut layout = Layout::default();
+            for op in ops {
+                op.apply(&mut layout);
+            }
+
+            let MonitorSet::Normal { monitors, .. } = layout.monitor_set else {
+                unreachable!()
+            };
+
+            let mon = monitors.into_iter().next().unwrap();
+            assert_eq!(
+                mon.active_workspace_idx, 1,
+                "the second workspace must remain active"
+            );
+            assert_eq!(
+                mon.workspaces[0].active_column_idx, 1,
+                "the new window must become active"
+            );
         }
+        // empty_workspace_above_first = true
+        {
+            let options = Options {
+                empty_workspace_above_first: true,
+                ..Default::default()
+            };
+            let mut layout = Layout::with_options(options);
+            for op in ops {
+                op.apply(&mut layout);
+            }
 
-        let MonitorSet::Normal { monitors, .. } = layout.monitor_set else {
-            unreachable!()
-        };
+            let MonitorSet::Normal { monitors, .. } = layout.monitor_set else {
+                unreachable!()
+            };
 
-        let mon = monitors.into_iter().next().unwrap();
-        let expected_workspace_offset = if mon.options.empty_workspace_above_first {
-            1
-        } else {
-            0
-        };
-        assert_eq!(
-            mon.active_workspace_idx,
-            1 + expected_workspace_offset,
-            "the second workspace must remain active"
-        );
-        assert_eq!(
-            mon.workspaces[expected_workspace_offset].active_column_idx, 1,
-            "the new window must become active"
-        );
+            let mon = monitors.into_iter().next().unwrap();
+            assert_eq!(
+                mon.active_workspace_idx, 2,
+                "the second workspace must remain active"
+            );
+            assert_eq!(
+                mon.workspaces[1].active_column_idx, 1,
+                "the new window must become active"
+            );
+        }
     }
 
     #[test]
@@ -4773,6 +4810,64 @@ mod tests {
         check_ops_with_options(options, &ops);
     }
 
+    #[test]
+    fn named_workspace_to_output() {
+        let ops = [
+            Op::AddNamedWorkspace {
+                ws_name: 1,
+                output_name: None,
+            },
+            Op::AddOutput(1),
+            Op::MoveWorkspaceToOutput(1),
+            Op::FocusWorkspaceUp,
+        ];
+        let options = Options {
+            empty_workspace_above_first: true,
+            ..Default::default()
+        };
+        check_ops_with_options(options, &ops);
+    }
+
+    #[test]
+    fn move_window_to_empty_workspace_above_first() {
+        let ops = [
+            Op::AddOutput(1),
+            Op::AddWindow {
+                id: 1,
+                bbox: Rectangle::from_loc_and_size((0, 0), (100, 200)),
+                min_max_size: Default::default(),
+            },
+            Op::MoveWorkspaceUp,
+            Op::MoveWorkspaceDown,
+            Op::FocusWorkspaceUp,
+            Op::MoveWorkspaceDown,
+        ];
+        let options = Options {
+            empty_workspace_above_first: true,
+            ..Default::default()
+        };
+        check_ops_with_options(options, &ops);
+    }
+
+    #[test]
+    fn move_window_to_different_output() {
+        let ops = [
+            Op::AddWindow {
+                id: 1,
+                bbox: Rectangle::from_loc_and_size((0, 0), (100, 200)),
+                min_max_size: Default::default(),
+            },
+            Op::AddOutput(1),
+            Op::AddOutput(2),
+            Op::MoveWorkspaceToOutput(2),
+        ];
+        let options = Options {
+            empty_workspace_above_first: true,
+            ..Default::default()
+        };
+        check_ops_with_options(options, &ops);
+    }
+
     fn arbitrary_spacing() -> impl Strategy<Value = f64> {
         // Give equal weight to:
         // - 0: the element is disabled
@@ -4847,12 +4942,14 @@ mod tests {
             border in arbitrary_border(),
             center_focused_column in arbitrary_center_focused_column(),
             always_center_single_column in any::<bool>(),
+            empty_workspace_above_first in any::<bool>(),
         ) -> Options {
             Options {
                 gaps,
                 struts,
                 center_focused_column,
                 always_center_single_column,
+                empty_workspace_above_first,
                 focus_ring,
                 border,
                 ..Default::default()
