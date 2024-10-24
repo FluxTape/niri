@@ -1847,8 +1847,8 @@ impl<W: LayoutElement> Layout<W> {
                     .enumerate()
                     .skip(pre_skip)
                     .rev()
+                    // skip last
                     .skip(1)
-                // skip last
                 {
                     if idx != monitor.active_workspace_idx {
                         assert!(
