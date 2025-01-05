@@ -73,6 +73,7 @@ pub mod opening_window;
 pub mod scrolling;
 pub mod tile;
 pub mod workspace;
+pub mod workspaces;
 
 /// Size changes up to this many pixels don't animate.
 pub const RESIZE_ANIMATION_THRESHOLD: f64 = 10.;

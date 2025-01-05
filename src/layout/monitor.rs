@@ -12,6 +12,7 @@ use smithay::utils::{Logical, Point, Rectangle};
 use super::scrolling::{Column, ColumnWidth};
 use super::tile::Tile;
 use super::workspace::{OutputId, Workspace, WorkspaceId, WorkspaceRenderElement};
+use super::workspaces::Workspaces;
 use super::{LayoutElement, Options};
 use crate::animation::{Animation, Clock};
 use crate::input::swipe_tracker::SwipeTracker;
