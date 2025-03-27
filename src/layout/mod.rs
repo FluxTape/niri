@@ -83,6 +83,7 @@ pub mod shadow;
 pub mod tab_indicator;
 pub mod tile;
 pub mod workspace;
+pub mod workspaces;
 
 #[cfg(test)]
 mod tests;

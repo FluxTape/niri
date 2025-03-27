@@ -13,6 +13,7 @@ use super::tile::Tile;
 use super::workspace::{
     OutputId, Workspace, WorkspaceAddWindowTarget, WorkspaceId, WorkspaceRenderElement,
 };
+use super::workspaces::{WorkspaceIdx, Workspaces};
 use super::{ActivateWindow, HitType, LayoutElement, Options};
 use crate::animation::{Animation, Clock};
 use crate::input::swipe_tracker::SwipeTracker;
