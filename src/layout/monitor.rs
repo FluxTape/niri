@@ -38,7 +38,7 @@ pub struct Monitor<W: LayoutElement> {
     /// Cached name of the output.
     output_name: String,
     // Must always contain at least one.
-    pub(super) workspaces: Vec<Workspace<W>>,
+    pub(super) workspaces: Workspaces<W>,
     /// Index of the currently active workspace.
     pub(super) active_workspace_idx: usize,
     /// ID of the previously active workspace.
@@ -135,8 +135,8 @@ impl<W: LayoutElement> Monitor<W> {
     ) -> Self {
         Self {
             output_name: output.name(),
+            workspaces: Workspaces::new(workspaces, output.clone(), clock.clone(), options.clone()),
             output,
-            workspaces,
             active_workspace_idx: 0,
             previous_workspace_id: None,
             workspace_switch: None,
@@ -158,7 +158,7 @@ impl<W: LayoutElement> Monitor<W> {
     }
 
     pub fn active_workspace_ref(&self) -> &Workspace<W> {
-        &self.workspaces[self.active_workspace_idx]
+        self.workspaces.active_workspace_ref()
     }
 
     pub fn find_named_workspace(&self, workspace_name: &str) -> Option<&Workspace<W>> {
@@ -178,7 +178,7 @@ impl<W: LayoutElement> Monitor<W> {
     }
 
     pub fn active_workspace(&mut self) -> &mut Workspace<W> {
-        &mut self.workspaces[self.active_workspace_idx]
+        self.workspaces.active_workspace_ref()
     }
 
     pub fn windows(&self) -> impl Iterator<Item = &W> {

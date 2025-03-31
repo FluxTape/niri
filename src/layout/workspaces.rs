@@ -10,6 +10,8 @@ use super::workspace::{Workspace, WorkspaceId};
 use super::{LayoutElement, Options};
 use crate::animation::{Animation, Clock};
 
+use smithay::output::Output;
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct WorkspaceIdx(isize);
 
@@ -21,15 +23,18 @@ impl WorkspaceIdx {
 
 #[derive(Debug)]
 pub struct Workspaces<W: LayoutElement> {
+    /// associated output
+    pub(super) output: Output,
+    /// Clock for driving animations.
+    pub(super) clock: Clock,
+    /// Configurable properties of the layout.
+    pub(super) options: Rc<Options>,
+
     workspaces: VecDeque<Workspace<W>>,
     active_workspace_idx: WorkspaceIdx,
     workspace_idx_offset: usize,
     previous_workspace_id: Option<WorkspaceId>,
     workspace_switch: Option<WorkspaceSwitch>,
-    /// Clock for driving animations.
-    pub(super) clock: Clock,
-    /// Configurable properties of the layout.
-    pub(super) options: Rc<Options>,
 }
 
 impl<W: LayoutElement> Index<WorkspaceIdx> for Workspaces<W> {
@@ -49,15 +54,21 @@ impl<W: LayoutElement> IndexMut<WorkspaceIdx> for Workspaces<W> {
 }
 
 impl<W: LayoutElement> Workspaces<W> {
-    pub fn new(workspaces: Vec<Workspace<W>>, clock: Clock, options: Rc<Options>) -> Self {
+    pub fn new(
+        workspaces: Vec<Workspace<W>>,
+        output: Output,
+        clock: Clock,
+        options: Rc<Options>,
+    ) -> Self {
         Self {
+            output,
+            clock,
+            options,
             workspaces: workspaces.into(),
             active_workspace_idx: WorkspaceIdx(0),
             workspace_idx_offset: 0,
             previous_workspace_id: None,
             workspace_switch: None,
-            clock,
-            options,
         }
     }
 
