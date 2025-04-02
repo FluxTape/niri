@@ -2,6 +2,7 @@ use std::cmp::min;
 use std::rc::Rc;
 use std::time::Duration;
 
+use proptest::num::usize;
 use smithay::backend::renderer::element::utils::{
     CropRenderElement, Relocate, RelocateRenderElement,
 };
@@ -178,7 +179,7 @@ impl<W: LayoutElement> Monitor<W> {
     }
 
     pub fn active_workspace(&mut self) -> &mut Workspace<W> {
-        self.workspaces.active_workspace_ref()
+        self.workspaces.active_workspace()
     }
 
     pub fn windows(&self) -> impl Iterator<Item = &W> {
@@ -190,51 +191,20 @@ impl<W: LayoutElement> Monitor<W> {
     }
 
     pub fn add_workspace_top(&mut self) {
-        let ws = Workspace::new(
-            self.output.clone(),
-            self.clock.clone(),
-            self.options.clone(),
-        );
-        self.workspaces.insert(0, ws);
-        self.active_workspace_idx += 1;
-
-        if let Some(switch) = &mut self.workspace_switch {
-            switch.offset(1);
-        }
+        self.workspaces.add_workspace_top();
     }
 
     pub fn add_workspace_bottom(&mut self) {
-        let ws = Workspace::new(
-            self.output.clone(),
-            self.clock.clone(),
-            self.options.clone(),
-        );
-        self.workspaces.push(ws);
+        self.workspaces.add_workspace_bottom();
     }
 
-    fn activate_workspace(&mut self, idx: usize) {
-        if self.active_workspace_idx == idx {
-            return;
-        }
+    fn activate_workspace(&mut self, idx: WorkspaceIdx) {
+        self.workspaces.activate_workspace(idx);
+    }
 
-        // FIXME: also compute and use current velocity.
-        let current_idx = self
-            .workspace_switch
-            .as_ref()
-            .map(|s| s.current_idx())
-            .unwrap_or(self.active_workspace_idx as f64);
-
-        self.previous_workspace_id = Some(self.workspaces[self.active_workspace_idx].id());
-
-        self.active_workspace_idx = idx;
-
-        self.workspace_switch = Some(WorkspaceSwitch::Animation(Animation::new(
-            self.clock.clone(),
-            current_idx,
-            idx as f64,
-            0.,
-            self.options.animations.workspace_switch.0,
-        )));
+    fn activate_workspace_by_num(&mut self, num: usize) {
+        self.workspaces
+            .activate_workspace(self.workspaces.to_external_index(num));
     }
 
     pub fn add_window(
@@ -248,12 +218,18 @@ impl<W: LayoutElement> Monitor<W> {
     ) {
         // Currently, everything a workspace sets on a Tile is the same across all workspaces of a
         // monitor. So we can use any workspace, not necessarily the exact target workspace.
-        let tile = self.workspaces[0].make_tile(window);
+        //let tile = self.workspaces[0].make_tile(window);
+        let tile = self.workspaces.active_workspace().make_tile(window);
 
         self.add_tile(tile, target, activate, width, is_full_width, is_floating);
     }
 
-    pub fn add_column(&mut self, mut workspace_idx: usize, column: Column<W>, activate: bool) {
+    pub fn add_column(
+        &mut self,
+        mut workspace_idx: WorkspaceIdx,
+        column: Column<W>,
+        activate: bool,
+    ) {
         let workspace = &mut self.workspaces[workspace_idx];
 
         workspace.add_column(column, activate);
@@ -263,13 +239,8 @@ impl<W: LayoutElement> Monitor<W> {
             workspace.original_output = OutputId::new(&self.output);
         }
 
-        if workspace_idx == self.workspaces.len() - 1 {
-            self.add_workspace_bottom();
-        }
-        if self.options.empty_workspace_above_first && workspace_idx == 0 {
-            self.add_workspace_top();
-            workspace_idx += 1;
-        }
+        // may need to add a new workspace above and/or below
+        self.clean_up_workspaces();
 
         if activate {
             self.activate_workspace(workspace_idx);
@@ -358,34 +329,7 @@ impl<W: LayoutElement> Monitor<W> {
     }
 
     pub fn clean_up_workspaces(&mut self) {
-        assert!(self.workspace_switch.is_none());
-
-        let range_start = if self.options.empty_workspace_above_first {
-            1
-        } else {
-            0
-        };
-        for idx in (range_start..self.workspaces.len() - 1).rev() {
-            if self.active_workspace_idx == idx {
-                continue;
-            }
-
-            if !self.workspaces[idx].has_windows_or_name() {
-                self.workspaces.remove(idx);
-                if self.active_workspace_idx > idx {
-                    self.active_workspace_idx -= 1;
-                }
-            }
-        }
-
-        // Special case handling when empty_workspace_above_first is set and all workspaces
-        // are empty.
-        if self.options.empty_workspace_above_first && self.workspaces.len() == 2 {
-            assert!(!self.workspaces[0].has_windows_or_name());
-            assert!(!self.workspaces[1].has_windows_or_name());
-            self.workspaces.remove(1);
-            self.active_workspace_idx = 0;
-        }
+        self.workspaces.clean_up_workspaces();
     }
 
     pub fn unname_workspace(&mut self, id: WorkspaceId) -> bool {

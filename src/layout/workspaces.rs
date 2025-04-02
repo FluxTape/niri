@@ -53,6 +53,30 @@ impl<W: LayoutElement> IndexMut<WorkspaceIdx> for Workspaces<W> {
     }
 }
 
+impl<W: LayoutElement> Index<WorkspaceId> for Workspaces<W> {
+    type Output = Workspace<W>;
+
+    fn index(&self, id: WorkspaceId) -> &Self::Output {
+        let internal_index = self
+            .workspaces
+            .iter()
+            .position(|w| w.id() == id)
+            .expect("no workspace with this id");
+        &self.workspaces[internal_index]
+    }
+}
+
+impl<W: LayoutElement> IndexMut<WorkspaceId> for Workspaces<W> {
+    fn index_mut(&mut self, id: WorkspaceId) -> &mut Self::Output {
+        let internal_index = self
+            .workspaces
+            .iter()
+            .position(|w| w.id() == id)
+            .expect("no workspace with this id");
+        &mut self.workspaces[internal_index]
+    }
+}
+
 impl<W: LayoutElement> Workspaces<W> {
     pub fn new(
         workspaces: Vec<Workspace<W>>,
@@ -89,13 +113,21 @@ impl<W: LayoutElement> Workspaces<W> {
     }
 
     #[inline]
-    fn to_external_index(&self, internal_index: usize) -> WorkspaceIdx {
+    pub fn to_external_index(&self, internal_index: usize) -> WorkspaceIdx {
         WorkspaceIdx(internal_index as isize - self.workspace_idx_offset as isize)
     }
 
     #[inline]
     fn internal_active_workspace_idx(&self) -> usize {
         self.to_internal_index(self.active_workspace_idx)
+    }
+
+    #[inline]
+    pub fn index_of_id(&self, id: WorkspaceId) -> Option<WorkspaceIdx> {
+        self.workspaces
+            .iter()
+            .position(|w| w.id() == id)
+            .map(|p| self.to_external_index(p))
     }
 
     /// add an element to the front without modifying the active_workspace_idx
@@ -175,11 +207,25 @@ impl<W: LayoutElement> Workspaces<W> {
             self.active_workspace_idx = WorkspaceIdx(0);
             assert!(self.workspace_idx_offset == 0);
         }
+
+        // add back workspaces if any are missing, e.g if a new column was added
+        if workspace_idx == self.workspaces.len() - 1 {
+            self.add_workspace_bottom();
+        }
+        if self.options.empty_workspace_above_first && workspace_idx == 0 {
+            self.add_workspace_top();
+            workspace_idx += 1;
+        }
     }
 
     #[inline]
     pub fn active_workspace_idx(&self) -> WorkspaceIdx {
         self.active_workspace_idx
+    }
+
+    #[inline]
+    pub fn active_workspace_id(&self) -> WorkspaceId {
+        self.active_workspace_ref().id()
     }
 
     #[inline]
@@ -240,6 +286,28 @@ impl<W: LayoutElement> Workspaces<W> {
 
     pub fn iter_mut(&mut self) -> IterMut<Workspace<W>> {
         self.workspaces.iter_mut()
+    }
+
+    pub fn add_workspace_top(&mut self) {
+        let ws = Workspace::new(
+            self.output.clone(),
+            self.clock.clone(),
+            self.options.clone(),
+        );
+        self.push_front(ws);
+
+        if let Some(switch) = &mut self.workspace_switch {
+            switch.offset(1);
+        }
+    }
+
+    pub fn add_workspace_bottom(&mut self) {
+        let ws = Workspace::new(
+            self.output.clone(),
+            self.clock.clone(),
+            self.options.clone(),
+        );
+        self.push_back(ws);
     }
 }
 
